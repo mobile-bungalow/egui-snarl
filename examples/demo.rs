@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use eframe::{App, CreationContext};
-use egui::{Color32, Id, Ui};
+use egui::{Color32, Id, Stroke, Ui};
 use egui_snarl::{
-    InPin, InPinId, NodeId, OutPin, OutPinId, Snarl,
+    InPin, InPinId, Node, NodeId, OutPin, OutPinId, Snarl,
     ui::{
         AnyPins, NodeLayout, PinInfo, PinPlacement, SnarlStyle, SnarlViewer, SnarlWidget,
         WireStyle, get_selected_nodes,
@@ -95,7 +95,9 @@ impl DemoNode {
     }
 }
 
-struct DemoViewer;
+struct DemoViewer {
+    selected: Vec<NodeId>,
+}
 
 impl SnarlViewer<DemoNode> for DemoViewer {
     #[inline]
@@ -574,6 +576,24 @@ impl SnarlViewer<DemoNode> for DemoViewer {
         }
     }
 
+    fn node_frame(
+        &mut self,
+        default: egui::Frame,
+        node: NodeId,
+        inputs: &[InPin],
+        outputs: &[OutPin],
+        snarl: &Snarl<DemoNode>,
+    ) -> egui::Frame {
+        let selected = self.selected.contains(&node);
+
+        dbg!(&selected, &self.selected);
+        if selected {
+            default.stroke(egui::Stroke::new(2.0, Color32::BLUE))
+        } else {
+            default
+        }
+    }
+
     fn has_node_menu(&mut self, _node: &DemoNode) -> bool {
         true
     }
@@ -929,6 +949,7 @@ impl Expr {
 pub struct DemoApp {
     snarl: Snarl<DemoNode>,
     style: SnarlStyle,
+    viewer: DemoViewer,
 }
 
 const fn default_style() -> SnarlStyle {
@@ -983,7 +1004,11 @@ impl DemoApp {
         });
         // let style = SnarlStyle::new();
 
-        DemoApp { snarl, style }
+        DemoApp {
+            snarl,
+            style,
+            viewer: DemoViewer { selected: vec![] },
+        }
     }
 }
 
@@ -1050,10 +1075,13 @@ impl App for DemoApp {
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            SnarlWidget::new()
+            let widget = SnarlWidget::new()
                 .id(Id::new("snarl-demo"))
-                .style(self.style)
-                .show(&mut self.snarl, &mut DemoViewer, ui);
+                .style(self.style);
+
+            widget.show(&mut self.snarl, &mut self.viewer, ui);
+
+            self.viewer.selected = SnarlWidget::get_selected_nodes(widget, ui);
         });
     }
 

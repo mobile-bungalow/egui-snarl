@@ -3,9 +3,9 @@
 use std::{collections::HashMap, hash::Hash};
 
 use egui::{
-    Align, Color32, CornerRadius, Frame, Id, LayerId, Layout, Margin, Modifiers, PointerButton,
-    Pos2, Rect, Scene, Sense, Shape, Stroke, StrokeKind, Style, Ui, UiBuilder, UiKind, UiStackInfo,
-    Vec2,
+    Align, Color32, CornerRadius, DragPanButtons, Frame, Id, LayerId, Layout, Margin, Modifiers,
+    PointerButton, Pos2, Rect, Scene, Sense, Shape, Stroke, StrokeKind, Style, Ui, UiBuilder,
+    UiKind, UiStackInfo, Vec2,
     collapsing_header::paint_default_icon,
     emath::{GuiRounding, TSTransform},
     epaint::Shadow,
@@ -991,6 +991,7 @@ where
     let mut snarl_resp = ui.response();
     Scene::new()
         .zoom_range(min_scale..=max_scale)
+        .drag_pan_buttons(DragPanButtons::MIDDLE)
         .register_pan_and_zoom(&ui, &mut snarl_resp, &mut to_global);
 
     if snarl_resp.changed() {
@@ -1032,12 +1033,12 @@ where
 
     // Process selection rect.
     let mut rect_selection_ended = None;
-    if modifiers.shift || snarl_state.is_rect_selection() {
-        let select_resp = ui.interact(snarl_resp.rect, snarl_id.with("select"), Sense::drag());
 
-        if select_resp.dragged_by(PointerButton::Primary)
-            && let Some(pos) = select_resp.interact_pointer_pos()
-        {
+    // Primary mouse button should start selection
+    let select_resp = ui.interact(snarl_resp.rect, snarl_id.with("select"), Sense::drag());
+
+    if let Some(pos) = select_resp.interact_pointer_pos() {
+        if select_resp.dragged_by(PointerButton::Primary) {
             if snarl_state.is_rect_selection() {
                 snarl_state.update_rect_selection(pos);
             } else {
@@ -1048,8 +1049,8 @@ where
         if select_resp.drag_stopped_by(PointerButton::Primary) {
             if let Some(select_rect) = snarl_state.rect_selection() {
                 rect_selection_ended = Some(select_rect);
+                snarl_state.stop_rect_selection();
             }
-            snarl_state.stop_rect_selection();
         }
     }
 
@@ -1317,9 +1318,10 @@ where
                 });
             }
         } else if viewer.has_graph_menu(interact_pos, snarl) {
-            snarl_resp.context_menu(|ui| {
+            let right_click =
+                ui.interact(snarl_resp.rect, snarl_id.with("graph menu"), Sense::click());
+            right_click.context_menu(|ui| {
                 let menu_pos = from_global * ui.cursor().min;
-
                 viewer.show_graph_menu(menu_pos, ui, snarl);
             });
         }
@@ -1827,22 +1829,23 @@ where
         snarl,
     );
 
-    // Rect for node + frame margin.
+    //// Grafiek: We just draw this with info from inside the header_frame function
+    //// Rect for node + frame margin.
     let node_frame_rect = node_rect + node_frame.total_margin();
 
-    if snarl_state.selected_nodes().contains(&node) {
-        let select_style = style.get_select_style(ui.style());
+    //if snarl_state.selected_nodes().contains(&node) {
+    //    let select_style = style.get_select_style(ui.style());
 
-        let select_rect = node_frame_rect + select_style.margin;
+    //    let select_rect = node_frame_rect + select_style.margin;
 
-        ui.painter().rect(
-            select_rect,
-            select_style.rounding,
-            select_style.fill,
-            select_style.stroke,
-            StrokeKind::Inside,
-        );
-    }
+    //    ui.painter().rect(
+    //        select_rect,
+    //        select_style.rounding,
+    //        select_style.fill,
+    //        select_style.stroke,
+    //        StrokeKind::Inside,
+    //    );
+    //}
 
     // Size of the pin.
     // Side of the square or diameter of the circle.
