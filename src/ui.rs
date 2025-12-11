@@ -979,7 +979,6 @@ where
     let mut snarl_resp = ui.response();
     Scene::new()
         .zoom_range(min_scale..=max_scale)
-        .drag_pan_buttons(DragPanButtons::MIDDLE)
         .register_pan_and_zoom(&ui, &mut snarl_resp, &mut to_global);
 
     if snarl_resp.changed() {
@@ -1025,6 +1024,15 @@ where
     // Primary mouse button should start selection
     let select_resp = ui.interact(snarl_resp.rect, snarl_id.with("select"), Sense::drag());
 
+    // Middle mouse button panning
+    if select_resp.dragged_by(PointerButton::Middle) {
+        let mut new_transform = snarl_state.to_global();
+        new_transform.translation += new_transform.scaling * select_resp.drag_delta();
+        snarl_state.set_to_global(new_transform);
+        ui.ctx().request_repaint();
+    }
+
+    // Primary mouse button starts rect selection
     if let Some(pos) = select_resp.interact_pointer_pos() {
         if select_resp.dragged_by(PointerButton::Primary) {
             if snarl_state.is_rect_selection() {
@@ -1313,6 +1321,7 @@ where
             if !on_node {
                 let right_click =
                     ui.interact(snarl_resp.rect, snarl_id.with("graph menu"), Sense::click());
+
                 right_click.context_menu(|ui| {
                     let menu_pos = from_global * ui.cursor().min;
                     viewer.show_graph_menu(menu_pos, ui, snarl);
@@ -1826,8 +1835,6 @@ where
         snarl,
     );
 
-    //// Grafiek: We just draw this with info from inside the header_frame function
-    //// Rect for node + frame margin.
     let node_frame_rect = node_rect + node_frame.total_margin();
 
     //if snarl_state.selected_nodes().contains(&node) {
