@@ -1094,9 +1094,7 @@ where
             drag_released |= response.drag_released;
 
             nodes_bb = nodes_bb.union(response.final_rect);
-            if rect_selection_ended.is_some() {
-                node_rects.push((node_idx, response.final_rect));
-            }
+            node_rects.push((node_idx, response.final_rect));
         }
     }
 
@@ -1182,14 +1180,14 @@ where
     }
 
     if let Some(select_rect) = rect_selection_ended {
-        let select_nodes = node_rects.into_iter().filter_map(|(id, rect)| {
+        let select_nodes = node_rects.iter().filter_map(|(id, rect)| {
             let select = if style.get_select_rect_contained() {
-                select_rect.contains_rect(rect)
+                select_rect.contains_rect(*rect)
             } else {
-                select_rect.intersects(rect)
+                select_rect.intersects(*rect)
             };
 
-            if select { Some(id) } else { None }
+            if select { Some(*id) } else { None }
         });
 
         if modifiers.command {
@@ -1306,12 +1304,20 @@ where
                 });
             }
         } else if viewer.has_graph_menu(interact_pos, snarl) {
-            let right_click =
-                ui.interact(snarl_resp.rect, snarl_id.with("graph menu"), Sense::click());
-            right_click.context_menu(|ui| {
-                let menu_pos = from_global * ui.cursor().min;
-                viewer.show_graph_menu(menu_pos, ui, snarl);
-            });
+            // Only show graph menu if click is not on a node
+            let interact_pos_graph = from_global * interact_pos;
+            let on_node = node_rects
+                .iter()
+                .any(|(_, rect)| rect.contains(interact_pos_graph));
+
+            if !on_node {
+                let right_click =
+                    ui.interact(snarl_resp.rect, snarl_id.with("graph menu"), Sense::click());
+                right_click.context_menu(|ui| {
+                    let menu_pos = from_global * ui.cursor().min;
+                    viewer.show_graph_menu(menu_pos, ui, snarl);
+                });
+            }
         }
     }
 
@@ -1852,15 +1858,15 @@ where
         Sense::click_and_drag(),
     );
 
-    if !modifiers.shift && !modifiers.command && r.dragged_by(PointerButton::Primary) {
+    if r.dragged_by(PointerButton::Primary) {
         node_moved = Some((node, r.drag_delta()));
     }
 
     if r.clicked_by(PointerButton::Primary) || r.dragged_by(PointerButton::Primary) {
-        if modifiers.shift {
-            snarl_state.select_one_node(modifiers.command, node);
-        } else if modifiers.command {
+        if snarl_state.selected_nodes().contains(&node) && modifiers.shift {
             snarl_state.deselect_one_node(node);
+        } else if !r.dragged() {
+            snarl_state.select_one_node(!modifiers.shift, node);
         }
     }
 
