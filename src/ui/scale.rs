@@ -17,8 +17,6 @@ impl EguiScale for WireStyle {
 impl EguiScale for SelectionStyle {
     #[inline(always)]
     fn scale(&mut self, scale: f32) {
-        self.margin.scale(scale);
-        self.rounding.scale(scale);
         self.stroke.scale(scale);
     }
 }

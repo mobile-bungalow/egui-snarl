@@ -294,15 +294,6 @@ impl NodeLayout {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "egui-probe", derive(egui_probe::EguiProbe))]
 pub struct SelectionStyle {
-    /// Margin between selection rect and node frame.
-    pub margin: Margin,
-
-    /// Rounding of selection rect.
-    pub rounding: CornerRadius,
-
-    /// Fill color of selection rect.
-    pub fill: Color32,
-
     /// Stroke of selection rect.
     pub stroke: Stroke,
 }
@@ -681,9 +672,6 @@ impl SnarlStyle {
 
     fn get_select_style(&self, style: &Style) -> SelectionStyle {
         self.select_style.unwrap_or_else(|| SelectionStyle {
-            margin: style.spacing.window_margin,
-            rounding: style.visuals.window_corner_radius,
-            fill: self.get_select_fill(style),
             stroke: self.get_select_stroke(style),
         })
     }
@@ -1813,13 +1801,16 @@ where
     let mut drag_released = false;
     let mut pin_hovered = None;
 
-    let node_frame = viewer.node_frame(
-        style.get_node_frame(ui.style()),
-        node,
-        &inputs,
-        &outputs,
-        snarl,
-    );
+    let selected = snarl_state.selected_nodes().contains(&node);
+    let select_style = style.get_select_style(ui.style());
+
+    let node_style = if selected {
+        style.get_node_frame(ui.style()).stroke(select_style.stroke)
+    } else {
+        style.get_node_frame(ui.style())
+    };
+
+    let node_frame = viewer.node_frame(node_style, node, &inputs, &outputs, snarl);
 
     let header_frame = viewer.header_frame(
         style.get_header_frame(ui.style()),
@@ -1834,7 +1825,6 @@ where
     let node_frame_rect = node_rect + node_frame.total_margin();
 
     //if snarl_state.selected_nodes().contains(&node) {
-    //    let select_style = style.get_select_style(ui.style());
 
     //    let select_rect = node_frame_rect + select_style.margin;
 
